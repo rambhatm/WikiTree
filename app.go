@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/extensions"
 )
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
@@ -49,6 +51,8 @@ func main() {
 		),
 	)
 
+	extensions.RandomUserAgent(c)
+
 	// Find and visit all links
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		e.Request.Visit(e.Attr("href"))
@@ -56,7 +60,14 @@ func main() {
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
 		numLinksFound = numLinksFound + 1 //TODO hmmm, is this goroutine safe?
-		fmt.Printf("URL: %s Title: %s\n", e.Request.URL, e.Text)
+		url := e.Request.URL.String()
+		title := strings.TrimSuffix(e.Text, " - Wikipedia")
+
+		fmt.Printf("URL: %s Title: %s\n", url, title)
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		fmt.Println("ERROR Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
 	c.Visit(url)
