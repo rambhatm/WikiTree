@@ -86,6 +86,8 @@ func main() {
 	)
 
 	extensions.RandomUserAgent(c)
+	extensions.Referer(c)
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 4})
 
 	// Find and visit all links
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
