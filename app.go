@@ -16,11 +16,17 @@ import (
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
 var allowedDomain string = "en.wikipedia.org"
-var numLinksFound int = 0
+
+var stats struct {
+	CrawledLinks int
+	ErrorLinks   int
+	TotalLinks   int
+}
 
 func crawlerSummary(start time.Time) {
 	elapsed := time.Since(start)
-	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nFound\t%d\n", url, elapsed, numLinksFound)
+	stats.TotalLinks = stats.CrawledLinks + stats.ErrorLinks
+	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, stats)
 }
 
 type wikiNode struct {
@@ -87,7 +93,7 @@ func main() {
 	})
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
-		numLinksFound = numLinksFound + 1 //TODO hmmm, is this goroutine safe?
+		stats.CrawledLinks++ //TODO hmmm, is this goroutine safe?
 		url := e.Request.URL.String()
 		title := strings.TrimSuffix(e.Text, " - Wikipedia")
 		createNode(db, url, title)
@@ -96,7 +102,8 @@ func main() {
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("ERROR Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+		//fmt.Println("ERROR Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+		stats.ErrorLinks++
 	})
 
 	c.Visit(url)
