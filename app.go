@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"regexp"
@@ -21,9 +23,35 @@ func crawlerSummary(start time.Time) {
 	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nFound\t%d\n", url, elapsed, numLinksFound)
 }
 
+type wikiNode struct {
+	Title string
+}
+
+func createNode(db *bolt.DB, key string, title string) {
+
+	var value bytes.Buffer
+	encoder := gob.NewEncoder(&value)
+
+	err := encoder.Encode(wikiNode{title})
+	if err != nil {
+		log.Fatal("encode error:", err)
+		return
+	}
+
+	db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(url))
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		err = b.Put([]byte(key), value.Bytes())
+		return err
+	})
+
+}
+
 func main() {
 	defer crawlerSummary(time.Now())
-	db, err := bolt.Open("my.db", 0600, nil)
+	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,8 +90,9 @@ func main() {
 		numLinksFound = numLinksFound + 1 //TODO hmmm, is this goroutine safe?
 		url := e.Request.URL.String()
 		title := strings.TrimSuffix(e.Text, " - Wikipedia")
+		createNode(db, url, title)
 
-		fmt.Printf("URL: %s Title: %s\n", url, title)
+		//fmt.Printf("URL: %s Title: %s\n", url, title)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
