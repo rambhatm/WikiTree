@@ -34,16 +34,17 @@ type wikiNode struct {
 }
 
 func createNode(db *bolt.DB, key string, title string) {
-
 	var value bytes.Buffer
 	encoder := gob.NewEncoder(&value)
 
+	//encode
 	err := encoder.Encode(wikiNode{title})
 	if err != nil {
 		log.Fatal("encode error:", err)
 		return
 	}
 
+	//commit
 	db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(url))
 		if err != nil {
@@ -95,12 +96,10 @@ func main() {
 	})
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
-		stats.CrawledLinks++ //TODO hmmm, is this goroutine safe?
+		stats.CrawledLinks++
 		url := e.Request.URL.String()
 		title := strings.TrimSuffix(e.Text, " - Wikipedia")
 		createNode(db, url, title)
-
-		//fmt.Printf("URL: %s Title: %s\n", url, title)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
