@@ -13,12 +13,14 @@ type WikiDoc struct {
 	Title string
 }
 
+var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
+
 func NewDoc(db *bolt.DB, key string, title string) {
 	var value bytes.Buffer
 	encoder := gob.NewEncoder(&value)
 
 	//encode
-	err := encoder.Encode(wikiNode{title})
+	err := encoder.Encode(WikiDoc{title})
 	if err != nil {
 		log.Fatal("encode error:", err)
 		return
@@ -36,5 +38,5 @@ func NewDoc(db *bolt.DB, key string, title string) {
 
 }
 func main() {
-	Crawl("https://en.wikipedia.org/wiki/Coronavirus_disease_2019", "en.wikipedia.org", 2)
+	Crawl(url, "en.wikipedia.org", 2)
 }

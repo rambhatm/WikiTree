@@ -71,7 +71,7 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 		stats.CrawledLinks++
 		url := e.Request.URL.String()
 		title := strings.TrimSuffix(e.Text, " - Wikipedia")
-		createNode(db, url, title)
+		NewDoc(db, url, title)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
