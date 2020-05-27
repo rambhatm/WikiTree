@@ -22,14 +22,20 @@ type crawler struct {
 	}
 }
 
-func crawlerSummary(start time.Time) {
+func (c *crawler) Summary(start time.Time) {
 	elapsed := time.Since(start)
-	stats.TotalLinks = stats.CrawledLinks + stats.ErrorLinks
-	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, stats)
+	c.Stats.TotalLinks = c.Stats.CrawledLinks + c.Stats.ErrorLinks
+	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, c.Stats)
 }
 
 func Crawl(url string, allowedDomain string, maxDepth int) {
-	defer crawlerSummary(time.Now())
+	//Initialize a crawler
+	var crawler crawler
+	crawler.URL = url
+	crawler.AllowedDomain = allowedDomain
+	crawler.MaxDepth = maxDepth
+	defer crawler.Summary(time.Now())
+
 	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +45,7 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 	c := colly.NewCollector(
 		colly.AllowedDomains(allowedDomain),
 		colly.Async(true),
-		colly.MaxDepth(2),
+		colly.MaxDepth(maxDepth),
 		colly.URLFilters(
 			regexp.MustCompile("https://en.wikipedia\\.org/wiki/"),
 		),
@@ -68,7 +74,7 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 	})
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
-		stats.CrawledLinks++
+		crawler.Stats.CrawledLinks++
 		url := e.Request.URL.String()
 		title := strings.TrimSuffix(e.Text, " - Wikipedia")
 		NewDoc(db, url, title)
@@ -76,7 +82,7 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 
 	c.OnError(func(r *colly.Response, err error) {
 		//fmt.Println("ERROR Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
-		stats.ErrorLinks++
+		crawler.Stats.ErrorLinks++
 	})
 
 	c.Visit(url)
