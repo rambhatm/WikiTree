@@ -22,7 +22,13 @@ type crawler struct {
 	}
 }
 
-func (c *crawler) Summary(start time.Time) {
+func (c *crawler) init(url string, allowedDomain string, maxDepth int) {
+	c.URL = url
+	c.AllowedDomain = allowedDomain
+	c.MaxDepth = maxDepth
+}
+
+func (c *crawler) end(start time.Time) {
 	elapsed := time.Since(start)
 	c.Stats.TotalLinks = c.Stats.CrawledLinks + c.Stats.ErrorLinks
 	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, c.Stats)
@@ -31,10 +37,8 @@ func (c *crawler) Summary(start time.Time) {
 func Crawl(url string, allowedDomain string, maxDepth int) {
 	//Initialize a crawler
 	var crawler crawler
-	crawler.URL = url
-	crawler.AllowedDomain = allowedDomain
-	crawler.MaxDepth = maxDepth
-	defer crawler.Summary(time.Now())
+	crawler.init(url, allowedDomain, maxDepth)
+	defer crawler.end(time.Now())
 
 	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
 	if err != nil {
