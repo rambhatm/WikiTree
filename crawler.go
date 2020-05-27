@@ -1,4 +1,4 @@
-package main
+package crawler
 
 import (
 	"log"
@@ -11,7 +11,7 @@ import (
 	"github.com/gocolly/colly/extensions"
 )
 
-type Crawler struct {
+type crawler struct {
 	URL           string
 	MaxDepth      int
 	AllowedDomain string
@@ -22,7 +22,13 @@ type Crawler struct {
 	}
 }
 
-func Crawl() {
+func crawlerSummary(start time.Time) {
+	elapsed := time.Since(start)
+	stats.TotalLinks = stats.CrawledLinks + stats.ErrorLinks
+	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, stats)
+}
+
+func Crawl(url string, allowedDomain string, maxDepth int) {
 	defer crawlerSummary(time.Now())
 	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
 	if err != nil {
