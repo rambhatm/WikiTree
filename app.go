@@ -36,5 +36,5 @@ func NewDoc(db *bolt.DB, key string, title string) {
 
 }
 func main() {
-	crawler.Crawl("https://en.wikipedia.org/wiki/Coronavirus_disease_2019", "en.wikipedia.org", 2)
+	Crawl("https://en.wikipedia.org/wiki/Coronavirus_disease_2019", "en.wikipedia.org", 2)
 }
