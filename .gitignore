@@ -1,3 +1,5 @@
 launch.json
-my.db
+rocksdb
 wikiTree.bolt
+.DS_Store
+go.sum
