@@ -106,7 +106,7 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 
 	extensions.RandomUserAgent(c)
 	extensions.Referer(c)
-	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 4})
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 8, RandomDelay: 20 * time.Millisecond})
 
 	// Find and visit all links
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {

@@ -5,12 +5,15 @@ import (
 	"log"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
 	MONGODBURI   = "mongodb://localhost:27017/?retryWrites=false"
-	WIKIDB       = "wikiDB"
+	WIKIDB       = "w2"
 	CRAWLRESULTS = "crawlResultCollection"
 )
 
@@ -40,5 +43,8 @@ func MongoInsertDoc(doc WikiDoc) {
 
 }
 func main() {
-	Crawl(1, url, "en.wikipedia.org", 4)
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+	Crawl(1, url, "en.wikipedia.org", 3)
 }
