@@ -9,6 +9,7 @@ import (
 
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/extensions"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -42,6 +43,13 @@ func (c *crawler) init(url string, allowedDomain string, maxDepth int) {
 	if err != nil {
 		log.Fatal("cannot connect to mongodb")
 	}
+	model := mongo.IndexModel{
+		Keys: bson.M{
+			"title": "text",
+		}, Options: nil,
+	}
+	crawlColly := c.Mongo.Client.Database(WIKIDB).Collection(CRAWLRESULTS)
+	crawlColly.Indexes().CreateOne(context.TODO(), model)
 }
 
 func (c *crawler) end(start time.Time) {

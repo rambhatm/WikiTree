@@ -16,7 +16,7 @@ const (
 type WikiDoc struct {
 	Title string
 	Url   string
-	depth int
+	Depth int
 }
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
