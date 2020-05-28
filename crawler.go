@@ -9,6 +9,8 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/extensions"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type crawler struct {
@@ -20,12 +22,29 @@ type crawler struct {
 		ErrorLinks   int
 		TotalLinks   int
 	}
+	Mongo struct {
+		Client *mongo.Client
+	}
 }
+
+const (
+	MONGODBURI   = "mongodb://localhost:27017/?retryWrites=false"
+	WIKI         = "wikiDB"
+	CRAWLRESULTS = "crawlResultCollection"
+)
+
+//Client config
+//var mongodbURI = os.Getenv("MONGODB_URI") + "?retryWrites=false"
+var ClientOptions = options.Client().ApplyURI(MONGODBURI)
 
 func (c *crawler) init(url string, allowedDomain string, maxDepth int) {
 	c.URL = url
 	c.AllowedDomain = allowedDomain
 	c.MaxDepth = maxDepth
+
+	//init mongo client for the crawler instance
+	var err error
+	c.Mongo.Client, err = mongo.NewClient()
 }
 
 func (c *crawler) end(start time.Time) {
