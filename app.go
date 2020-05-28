@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -24,8 +25,9 @@ var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
 func (doc WikiDoc) InsertDB(client *mongo.Client) {
 	crawlColly := client.Database(WIKIDB).Collection(CRAWLRESULTS)
 
-	//Find a max of 5 results for filter
-	_, err := crawlColly.InsertOne(context.TODO(), doc)
+	// Declare Context type object for managing multiple API requests
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	_, err := crawlColly.InsertOne(ctx, doc)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -45,7 +45,7 @@ func (c *crawler) init(url string, allowedDomain string, maxDepth int) {
 	}
 	model := mongo.IndexModel{
 		Keys: bson.M{
-			"title": "text",
+			"title": 1,
 		}, Options: nil,
 	}
 	crawlColly := c.Mongo.Client.Database(WIKIDB).Collection(CRAWLRESULTS)
