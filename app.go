@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"net/http"
-	_ "net/http/pprof"
+	//"net/http"
+	//_ "net/http/pprof"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -26,25 +26,27 @@ type WikiDoc struct {
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
 
-func MongoInsertDoc(doc WikiDoc) {
-	client, err := mongo.Connect(context.TODO(), ClientOptions)
-	if err != nil {
-		log.Fatal("cannot connect to mongodb")
-	}
-	defer client.Disconnect(context.TODO())
-	crawlColly := client.Database(WIKIDB).Collection(CRAWLRESULTS)
+func MongoInsertDoc(c *mongo.Client, doc WikiDoc) {
+	//ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	//client, err := mongo.Connect(ctx, ClientOptions)
+	//if err != nil {
+	//	log.Fatal("cannot connect to mongodb")
+	//}
+	//defer client.Disconnect(context.TODO())
+	crawlColly := c.Database(WIKIDB).Collection(CRAWLRESULTS)
 
 	// Declare Context type object for managing multiple API requests
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
-	_, err = crawlColly.InsertOne(ctx, doc)
+	_, err := crawlColly.InsertOne(ctx, doc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 }
 func main() {
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	/*
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()*/
 	Crawl(1, url, "en.wikipedia.org", 3)
 }

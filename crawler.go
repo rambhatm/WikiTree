@@ -25,6 +25,7 @@ type crawler struct {
 		ErrorLinks   [16]int
 		//TotalLinks   int
 	}
+	C *mongo.Client
 }
 
 //Client config
@@ -45,22 +46,24 @@ func (c *crawler) init(id int, url string, allowedDomain string, maxDepth int) {
 	}
 
 	//init mongo client for the crawler instance
-	client, err := mongo.Connect(context.TODO(), ClientOptions)
+	var err error
+	c.C, err = mongo.Connect(context.TODO(), ClientOptions)
 	if err != nil {
 		log.Fatal("cannot connect to mongodb")
 	}
-	defer client.Disconnect(context.TODO())
+	//defer client.Disconnect(context.TODO())
 	model := mongo.IndexModel{
 		Keys: bson.M{
 			"title": 1,
 		}, Options: nil,
 	}
-	crawlColly := client.Database(WIKIDB).Collection(CRAWLRESULTS)
+	crawlColly := c.C.Database(WIKIDB).Collection(CRAWLRESULTS)
 	crawlColly.Indexes().CreateOne(context.TODO(), model)
 }
 
 func (c *crawler) end() {
-	//defer c.summary()
+	c.C.Disconnect(context.TODO())
+	defer c.summary()
 }
 
 func (c *crawler) summary() {
@@ -106,7 +109,7 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 
 	extensions.RandomUserAgent(c)
 	extensions.Referer(c)
-	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 8, RandomDelay: 20 * time.Millisecond})
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 32, RandomDelay: 25 * time.Millisecond})
 
 	// Find and visit all links
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
@@ -122,7 +125,7 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 			e.Request.Depth,
 		}
 		//doc.SeedUrl = "a"
-		go MongoInsertDoc(doc)
+		go MongoInsertDoc(crawler.C, doc)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
