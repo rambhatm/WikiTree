@@ -2,39 +2,45 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
-	"fmt"
 	"log"
 
-	"github.com/boltdb/bolt"
+	"go.mongodb.org/mongo-driver/mongo"
+)
+
+const (
+	MONGODBURI   = "mongodb://localhost:27017/?retryWrites=false"
+	WIKIDB       = "wikiDB"
+	CRAWLRESULTS = "crawlResultCollection"
 )
 
 type WikiDoc struct {
 	Title string
+	Url   string
+	depth int
 }
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
 
-func NewDoc(db *bolt.DB, key string, title string) {
+func (doc WikiDoc) InsertDB(client *mongo.Client) {
 	var value bytes.Buffer
 	encoder := gob.NewEncoder(&value)
 
 	//encode
-	err := encoder.Encode(WikiDoc{title})
+	err := encoder.Encode(WikiDoc{doc.Title})
 	if err != nil {
 		log.Fatal("encode error:", err)
 		return
 	}
 
-	//commit
-	db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(url))
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		err = b.Put([]byte(key), value.Bytes())
-		return err
-	})
+	crawlColly := client.Database(WIKIDB).Collection(CRAWLRESULTS)
+
+	//Find a max of 5 results for filter
+	_, err = crawlColly.InsertOne(context.TODO(), doc)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 func main() {

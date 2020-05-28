@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/extensions"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -27,12 +27,6 @@ type crawler struct {
 	}
 }
 
-const (
-	MONGODBURI   = "mongodb://localhost:27017/?retryWrites=false"
-	WIKI         = "wikiDB"
-	CRAWLRESULTS = "crawlResultCollection"
-)
-
 //Client config
 //var mongodbURI = os.Getenv("MONGODB_URI") + "?retryWrites=false"
 var ClientOptions = options.Client().ApplyURI(MONGODBURI)
@@ -44,11 +38,15 @@ func (c *crawler) init(url string, allowedDomain string, maxDepth int) {
 
 	//init mongo client for the crawler instance
 	var err error
-	c.Mongo.Client, err = mongo.NewClient()
+	c.Mongo.Client, err = mongo.Connect(context.TODO(), ClientOptions)
+	if err != nil {
+		log.Fatal("cannot connect to mongodb")
+	}
 }
 
 func (c *crawler) end(start time.Time) {
 	elapsed := time.Since(start)
+	c.Mongo.Client.Disconnect(context.TODO())
 	c.Stats.TotalLinks = c.Stats.CrawledLinks + c.Stats.ErrorLinks
 	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, c.Stats)
 }
@@ -58,12 +56,6 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 	var crawler crawler
 	crawler.init(url, allowedDomain, maxDepth)
 	defer crawler.end(time.Now())
-
-	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
 
 	c := colly.NewCollector(
 		colly.AllowedDomains(allowedDomain),
@@ -98,9 +90,12 @@ func Crawl(url string, allowedDomain string, maxDepth int) {
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
 		crawler.Stats.CrawledLinks++
-		url := e.Request.URL.String()
-		title := strings.TrimSuffix(e.Text, " - Wikipedia")
-		NewDoc(db, url, title)
+		doc := WikiDoc{
+			strings.TrimSuffix(e.Text, " - Wikipedia"),
+			e.Request.URL.String(),
+			e.Request.Depth,
+		}
+		doc.InsertDB(crawler.Mongo.Client)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
