@@ -1,112 +1,52 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
+	"context"
 	"log"
-	"regexp"
-	"strings"
 	"time"
 
-	"github.com/boltdb/bolt"
-	"github.com/gocolly/colly"
-	"github.com/gocolly/colly/extensions"
+	//"net/http"
+	//_ "net/http/pprof"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
+const (
+	MONGODBURI   = "mongodb://localhost:27017/?retryWrites=false"
+	WIKIDB       = "w2"
+	CRAWLRESULTS = "crawlResultCollection"
+)
+
+type WikiDoc struct {
+	Title           string
+	Url             string
+	SeedUrl         string
+	DistanceFromUrl int
+}
+
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
-var allowedDomain string = "en.wikipedia.org"
 
-var stats struct {
-	CrawledLinks int
-	ErrorLinks   int
-	TotalLinks   int
-}
+func MongoInsertDoc(c *mongo.Client, doc WikiDoc) {
+	//ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	//client, err := mongo.Connect(ctx, ClientOptions)
+	//if err != nil {
+	//	log.Fatal("cannot connect to mongodb")
+	//}
+	//defer client.Disconnect(context.TODO())
+	crawlColly := c.Database(WIKIDB).Collection(CRAWLRESULTS)
 
-func crawlerSummary(start time.Time) {
-	elapsed := time.Since(start)
-	stats.TotalLinks = stats.CrawledLinks + stats.ErrorLinks
-	log.Printf("\nCrawler Summary\nTop-level URL\t%s\nTime taken\t%s\nStats\t%+v\n", url, elapsed, stats)
-}
-
-type wikiNode struct {
-	Title string
-}
-
-func createNode(db *bolt.DB, key string, title string) {
-	var value bytes.Buffer
-	encoder := gob.NewEncoder(&value)
-
-	//encode
-	err := encoder.Encode(wikiNode{title})
-	if err != nil {
-		log.Fatal("encode error:", err)
-		return
-	}
-
-	//commit
-	db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(url))
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		err = b.Put([]byte(key), value.Bytes())
-		return err
-	})
-
-}
-
-func main() {
-	defer crawlerSummary(time.Now())
-	db, err := bolt.Open("wikiTree.bolt", 0600, nil)
+	// Declare Context type object for managing multiple API requests
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	_, err := crawlColly.InsertOne(ctx, doc)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 
-	c := colly.NewCollector(
-		colly.AllowedDomains(allowedDomain),
-		colly.Async(true),
-		colly.MaxDepth(2),
-		colly.URLFilters(
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/"),
-		),
-
-		colly.DisallowedURLFilters(
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/File\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Help\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/VideoWiki\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Wikipedia\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Special\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Category\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template_talk\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Portal\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Talk\\:"),
-		),
-	)
-
-	extensions.RandomUserAgent(c)
-	extensions.Referer(c)
-	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 4})
-
-	// Find and visit all links
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		e.Request.Visit(e.Attr("href"))
-	})
-
-	c.OnHTML("title", func(e *colly.HTMLElement) {
-		stats.CrawledLinks++
-		url := e.Request.URL.String()
-		title := strings.TrimSuffix(e.Text, " - Wikipedia")
-		createNode(db, url, title)
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		//fmt.Println("ERROR Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
-		stats.ErrorLinks++
-	})
-
-	c.Visit(url)
-	c.Wait()
+}
+func main() {
+	/*
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()*/
+	Crawl(1, url, "en.wikipedia.org", 3)
 }
