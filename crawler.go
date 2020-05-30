@@ -102,11 +102,13 @@ func (c *crawler) summary() {
 	log.Printf("\nTotal links crawled: %d", total)
 }
 
-func Crawl(id int, url string, allowedDomain string, maxDepth int) {
+func Crawl(id int, url string) {
 	//Initialize a crawler
 	var crawler crawler
-	crawler.init(id, url, allowedDomain, maxDepth)
+	crawler.init(id, url)
 	defer crawler.end()
+
+	var doc WikiDoc
 
 	extensions.RandomUserAgent(crawler.Scrapper)
 	extensions.Referer(c)
@@ -114,7 +116,8 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 
 	// Find and visit all links
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		e.Request.Visit(e.Attr("href"))
+		doc.PageLinkspageLinks = append(doc.PageLinks, e.Attr("href"))
+		//e.Request.Visit(e.Attr("href"))
 	})
 
 	c.OnHTML("title", func(e *colly.HTMLElement) {
@@ -136,4 +139,5 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 
 	c.Visit(url)
 	c.Wait()
+
 }

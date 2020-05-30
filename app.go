@@ -18,10 +18,9 @@ const (
 )
 
 type WikiDoc struct {
-	Title           string
-	Url             string
-	SeedUrl         string
-	DistanceFromUrl int
+	Title     string
+	PageUrl   string
+	PageLinks []string
 }
 
 var url string = "https://en.wikipedia.org/wiki/Coronavirus_disease_2019"
