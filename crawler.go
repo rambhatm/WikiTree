@@ -137,6 +137,8 @@ func Crawl(id int, url string) {
 		crawler.Stats.ErrorLinks[r.Request.Depth-1]++
 	})
 
+	var pageLinkMap = map[string]string
+	for link = delete()
 	c.Visit(url)
 	c.Wait()
 
