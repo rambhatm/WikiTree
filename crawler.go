@@ -25,12 +25,34 @@ type crawler struct {
 		ErrorLinks   [16]int
 		//TotalLinks   int
 	}
-	C *mongo.Client
+	C       *mongo.Client
+	Scraper *colly.Collector
 }
 
 //Client config
 //var mongodbURI = os.Getenv("MONGODB_URI") + "?retryWrites=false"
 var ClientOptions = options.Client().ApplyURI(MONGODBURI)
+var Collector = colly.NewCollector(
+	colly.AllowedDomains("en.wikipedia.org"),
+	colly.Async(true),
+	colly.MaxDepth(1),
+	colly.URLFilters(
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/"),
+	),
+
+	colly.DisallowedURLFilters(
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/File\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Help\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/VideoWiki\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Wikipedia\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Special\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Category\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template_talk\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Portal\\:"),
+		regexp.MustCompile("https://en.wikipedia\\.org/wiki/Talk\\:"),
+	),
+)
 
 func (c *crawler) init(id int, url string, allowedDomain string, maxDepth int) {
 	c.Stats.StartTime = time.Now()
@@ -59,6 +81,8 @@ func (c *crawler) init(id int, url string, allowedDomain string, maxDepth int) {
 	}
 	crawlColly := c.C.Database(WIKIDB).Collection(CRAWLRESULTS)
 	crawlColly.Indexes().CreateOne(context.TODO(), model)
+
+	c.Scraper = Collector.Clone()
 }
 
 func (c *crawler) end() {
@@ -84,30 +108,7 @@ func Crawl(id int, url string, allowedDomain string, maxDepth int) {
 	crawler.init(id, url, allowedDomain, maxDepth)
 	defer crawler.end()
 
-	c := colly.NewCollector(
-		colly.AllowedDomains(allowedDomain),
-		colly.Async(true),
-		colly.MaxDepth(maxDepth),
-		//colly.Debugger(&debug.LogDebugger{}),
-		colly.URLFilters(
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/"),
-		),
-
-		colly.DisallowedURLFilters(
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/File\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Help\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/VideoWiki\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Wikipedia\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Special\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Category\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Template_talk\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Portal\\:"),
-			regexp.MustCompile("https://en.wikipedia\\.org/wiki/Talk\\:"),
-		),
-	)
-
-	extensions.RandomUserAgent(c)
+	extensions.RandomUserAgent(crawler.Scrapper)
 	extensions.Referer(c)
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 32, RandomDelay: 25 * time.Millisecond})
 
